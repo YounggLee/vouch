@@ -1,28 +1,40 @@
 [
   {
-    "id": "s0",
-    "intent": "사용자 인증 및 접근 제어 기능 구현",
+    "id": "s1",
+    "intent": "User 모델 및 DB 스키마에 role 및 password 필드 추가",
     "raw_hunk_ids": [
-      "r2",
-      "r8",
-      "r5",
       "r4",
+      "r5",
       "r9"
     ]
   },
   {
-    "id": "s1",
-    "intent": "애플리케이션 진입점 및 뷰에 접근 제어 적용",
+    "id": "s2",
+    "intent": "인증(login) 및 접근 제어(check_access) 핵심 로직 구현 및 테스트",
     "raw_hunk_ids": [
-      "r0",
-      "r1",
+      "r2",
+      "r8"
+    ]
+  },
+  {
+    "id": "s3",
+    "intent": "조회용 뷰(views)에 권한 확인 로직 적용 및 시그니처 변경",
+    "raw_hunk_ids": [
       "r6",
       "r7"
     ]
   },
   {
-    "id": "s2",
-    "intent": "애플리케이션 설정 상수 추가",
+    "id": "s4",
+    "intent": "메인 애플리케이션 흐름에 사용자 인증 및 권한 관리 통합",
+    "raw_hunk_ids": [
+      "r0",
+      "r1"
+    ]
+  },
+  {
+    "id": "s5",
+    "intent": "세션 TTL 및 관리자 설정 등을 위한 환경 설정 파일 추가",
     "raw_hunk_ids": [
       "r3"
     ]

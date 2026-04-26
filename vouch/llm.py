@@ -9,7 +9,7 @@ from vouch.cache import load as cache_load, save as cache_save
 from vouch.models import Analysis, RawHunk, SemanticHunk
 
 
-_MODEL = os.environ.get("VOUCH_MODEL", "gemini-2.5-flash")
+_MODEL = os.environ.get("VOUCH_MODEL", "gemini-3-flash-preview")
 _PROJECT = os.environ.get("GOOGLE_CLOUD_PROJECT") or os.environ.get("GCP_PROJECT")
 _LOCATION = os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1")
 

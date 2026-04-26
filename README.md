@@ -2,37 +2,74 @@
 
 > You vouch. AI helps.
 
-cmux-native AI diff reviewer — semantic hunks, risk triage, confidence self-doubt, closed-loop reject.
+**Closed-loop AI diff reviewer for the agentic-coding era.**
 
-## What it does
+- **For**: senior engineers whose review queue is bottlenecked by AI-agent PRs.
+- **Does**: groups raw git hunks into *intent units*, tags each with risk/confidence, lets you accept or reject in a TUI — and **rejects flow back to the agent as a structured retry prompt**.
+- **Different**: not a one-way reviewer. The reject loop closes automatically (cmux surface) or via clipboard (anywhere else).
 
-- Reads a diff (uncommitted / commit / range / GitHub PR).
-- LLM-groups raw git hunks into **semantic hunks** (one intent = one card).
-- LLM-tags each card with **risk** (🔴 high / 🟡 med / 🟢 low), **confidence** (✅ / ⚠️ / ❓), and a 한국어 한 줄 요약.
-- TUI queue lets a human accept/reject. Rejects with reasons are bundled into a prompt and **sent to the source agent's cmux surface** to retry.
-- Status, progress, and notifications surface in the cmux sidebar.
+![demo](docs/demo.gif)
 
-## Run
+## Architecture
 
 ```
-vouch                                    # uncommitted (default)
-vouch HEAD~3                             # single commit
-vouch main..HEAD                         # range
-vouch --pr 42                            # GitHub PR
-vouch --source-surface surface:5         # explicit reject target
-vouch hook stop                          # called from Claude Code SessionStop hook
+        ┌──────────────────────────────────────────────────────────┐
+        │  git diff (35 raw hunks)                                 │
+        └────────────────────────┬─────────────────────────────────┘
+                                 │ LLM semantic grouping
+                                 ▼
+                       ┌─────────────────┐
+                       │ 5 intent units  │   risk · confidence · 한 줄 요약
+                       └────────┬────────┘
+                                │
+                                ▼
+                  ┌────────────────────────┐
+                  │  TUI review queue      │   j/k · a/A · r (reason) · s · q
+                  └────────┬───────────────┘
+                           │ rejects bundled
+                           ▼
+              ┌──────────────────────────────┐
+              │ delivery (best available)    │
+              │  1. cmux surface  (auto)     │
+              │  2. pbcopy / wl-copy / xclip │
+              │  3. stdout                   │
+              └──────────────┬───────────────┘
+                             ▼
+                       source agent
 ```
 
-Key bindings: `j`/`k` move, `a` accept, `A` accept-all-low, `r` reject (modal for reason), `s` send rejects → source surface, `q` quit.
+## Install & run
 
-### Environment
+### 5-second start (any terminal)
+
+```
+pip install -e .
+vouch                    # review uncommitted changes
+```
+
+If `cmux` is not on PATH, sidebar/notify silently no-op and reject prompts fall through clipboard → stdout.
+
+### Full experience (inside cmux)
+
+```
+vouch                                # uncommitted (default)
+vouch HEAD~3                         # single commit
+vouch main..HEAD                     # range
+vouch --pr 42                        # GitHub PR
+vouch --source-surface surface:5     # explicit reject target
+```
+
+When run inside cmux, vouch publishes status/progress to the sidebar and pushes rejects directly to the source agent's surface.
+
+Key bindings: `j`/`k` move, `a` accept, `A` accept-all-low, `r` reject (modal for reason), `s` send rejects → source, `q` quit.
+
+## Environment
 
 | Variable | Effect |
 |---|---|
 | `GEMINI_API_KEY` | Gemini API key. Falls back to repo `.env`. |
 | `VOUCH_CACHE_DIR` | Response cache directory (default: `fixtures/responses`). |
 | `VOUCH_CACHE_ONLY=1` | Use cache only — never call Gemini. Errors if cache misses. |
-| `VOUCH_REQUIRE_CMUX=0` | Skip the `cmux ping` precondition (sidebar/notify silently no-op). |
 | `VOUCH_SOURCE_SURFACE` | Default reject-target surface. Falls back to `CMUX_SURFACE_ID`. |
 | `VOUCH_MODEL` | Gemini model id (default: `gemini-3-flash-preview`). |
 
@@ -42,11 +79,14 @@ Key bindings: `j`/`k` move, `a` accept, `A` accept-all-low, `r` reject (modal fo
 ./scripts/demo.sh
 ```
 
-Uses pre-recorded LLM responses (`VOUCH_CACHE_ONLY=1`) so the demo is deterministic.
+Uses pre-recorded LLM responses (`VOUCH_CACHE_ONLY=1`) so the demo is deterministic. Re-record the GIF with:
+
+```
+vhs scripts/demo.tape    # writes docs/demo.gif
+```
 
 ## Roadmap (v2)
 
-- Host abstraction (CmuxHost / PlainHost) — works outside cmux
 - Multi-model disagreement flag
 - Anomaly detection vs. codebase patterns
 - Per-hunk conversation

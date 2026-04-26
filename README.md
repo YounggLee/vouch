@@ -44,7 +44,7 @@
 ### 5-second start (any terminal)
 
 ```
-pip install -e .
+pip install git+https://github.com/YounggLee/vouch.git
 vouch                    # review uncommitted changes
 ```
 
@@ -58,6 +58,7 @@ vouch HEAD~3                         # single commit
 vouch main..HEAD                     # range
 vouch --pr 42                        # GitHub PR
 vouch --source-surface surface:5     # explicit reject target
+vouch help                           # full guide (modes, keys, env, troubleshooting)
 ```
 
 When run inside cmux, vouch publishes status/progress to the sidebar and pushes rejects directly to the source agent's surface.
@@ -108,16 +109,15 @@ VOUCH_E2E=1 pytest tests/test_integration.py    # e2e (needs GEMINI_API_KEY)
 Try each mode interactively against the fixture:
 
 ```bash
-# 1. Set up fixture once
+# 1. From the vouch repo: set up fixture + load env + activate venv
 ./tests/setup_fixture.sh
-
-# 2. Load API key
 set -a; . .env; set +a
+source .venv/bin/activate          # so `vouch` is on PATH
 
-# 3. cd into fixture
+# 2. cd into fixture
 cd /tmp/vouch-fixtures
 
-# 4. Try each mode
+# 3. Try each mode
 vouch                              # uncommitted (pending.diff applied to working tree)
 
 git checkout feature/auth          # switch branch first
@@ -128,6 +128,9 @@ git checkout main                  # back to main
 vouch main..feature/auth           # range mode — full feature branch
 vouch --pr 1                       # pr mode — fixture PR #1
 ```
+
+If you'd rather not activate the venv, call the binary directly:
+`/Users/<you>/.../hackathon/.venv/bin/vouch ...`
 
 Press `q` to exit the TUI. Each mode produces a different review queue — useful for sanity-checking the pipeline end-to-end without poking the demo fixture.
 

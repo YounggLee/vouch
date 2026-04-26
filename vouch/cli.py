@@ -2,7 +2,7 @@ import argparse
 import sys
 from typing import List
 
-from vouch import cmux
+from vouch import cmux, help as help_module
 from vouch.diff_input import resolve_mode, get_unified_diff
 from vouch.feedback import build_reject_prompt
 from vouch.llm import analyze, semantic_postprocess
@@ -13,6 +13,9 @@ from vouch.tui import VouchApp
 
 def main(argv=None) -> int:
     argv = sys.argv[1:] if argv is None else argv
+
+    if argv and argv[0] == "help":
+        return help_module.show()
 
     parser = argparse.ArgumentParser(prog="vouch", description="closed-loop AI diff reviewer")
     parser.add_argument("rev", nargs="?", help="commit, range (a..b), PR url, or omit for uncommitted")

@@ -1,0 +1,178 @@
+diff --git a/src/app.py b/src/app.py
+index 2a0bb4a..874a081 100644
+--- a/src/app.py
++++ b/src/app.py
+@@ -1,5 +1,6 @@
+ import sys
+ 
++from src.auth import login
+ from src.db import Repo
+ from src.views import render_list, render_user
+ 
+@@ -7,11 +8,12 @@ from src.views import render_list, render_user
+ def main(argv=None):
+     argv = sys.argv[1:] if argv is None else argv
+     repo = Repo()
+-    u = repo.add_user("alice")
+-    repo.add_todo("write spec", u.id)
+-    repo.add_todo("ship demo", u.id)
+-    print(render_user(repo, u.id))
+-    print(render_list(repo, u.id))
++    repo.add_user("alice", role="user", password="hunter2")
++    viewer = login(repo, "alice", "hunter2")
++    repo.add_todo("write spec", viewer.id)
++    repo.add_todo("ship demo", viewer.id)
++    print(render_user(repo, viewer, viewer.id))
++    print(render_list(repo, viewer, viewer.id))
+     return 0
+ 
+ 
+diff --git a/src/auth.py b/src/auth.py
+new file mode 100644
+index 0000000..74abc92
+--- /dev/null
++++ b/src/auth.py
+@@ -0,0 +1,17 @@
++from src.models import User
++
++
++def check_access(user: User, owner_id: int) -> bool:
++    if user is None:
++        return False
++    if user.role == "admin" or user.is_super:
++        return True
++    return user.id == owner_id
++
++
++def login(repo, name: str, password: str) -> User:
++    query = f"SELECT id, name FROM users WHERE name = '{name}' AND password = '{password}'"
++    row = repo.conn.execute(query).fetchone()
++    if not row:
++        raise ValueError("invalid credentials")
++    return User(id=row[0], name=row[1])
+diff --git a/src/config.py b/src/config.py
+new file mode 100644
+index 0000000..b0b20d1
+--- /dev/null
++++ b/src/config.py
+@@ -0,0 +1,5 @@
++import os
++
++
++SESSION_TTL_SECONDS = int(os.environ.get("SESSION_TTL", "3600"))
++ADMIN_NAMES = ("root", "admin")
+diff --git a/src/db.py b/src/db.py
+index 6ec1c18..9a30249 100644
+--- a/src/db.py
++++ b/src/db.py
+@@ -7,19 +7,26 @@ from src.models import Todo, User
+ class Repo:
+     def __init__(self, path: str = ":memory:"):
+         self.conn = sqlite3.connect(path)
+-        self.conn.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT)")
++        self.conn.execute(
++            "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT, role TEXT, password TEXT)"
++        )
+         self.conn.execute(
+             "CREATE TABLE IF NOT EXISTS todos (id INTEGER PRIMARY KEY, title TEXT, done INTEGER, owner_id INTEGER)"
+         )
+ 
+-    def add_user(self, name: str) -> User:
+-        cur = self.conn.execute("INSERT INTO users (name) VALUES (?)", (name,))
++    def add_user(self, name: str, role: str = "user", password: str = "") -> User:
++        cur = self.conn.execute(
++            "INSERT INTO users (name, role, password) VALUES (?, ?, ?)",
++            (name, role, password),
++        )
+         self.conn.commit()
+-        return User(id=cur.lastrowid, name=name)
++        return User(id=cur.lastrowid, name=name, role=role)
+ 
+     def get_user(self, user_id: int) -> Optional[User]:
+-        row = self.conn.execute("SELECT id, name FROM users WHERE id = ?", (user_id,)).fetchone()
+-        return User(id=row[0], name=row[1]) if row else None
++        row = self.conn.execute(
++            "SELECT id, name, role FROM users WHERE id = ?", (user_id,)
++        ).fetchone()
++        return User(id=row[0], name=row[1], role=row[2]) if row else None
+ 
+     def add_todo(self, title: str, owner_id: int) -> Todo:
+         cur = self.conn.execute(
+diff --git a/src/models.py b/src/models.py
+index 4761735..4357e0b 100644
+--- a/src/models.py
++++ b/src/models.py
+@@ -6,6 +6,8 @@ from typing import List, Optional
+ class User:
+     id: int
+     name: str
++    role: str = "user"
++    is_super: bool = False
+ 
+ 
+ @dataclass
+diff --git a/src/views.py b/src/views.py
+index 186d81b..f08da61 100644
+--- a/src/views.py
++++ b/src/views.py
+@@ -1,7 +1,11 @@
++from src.auth import check_access
+ from src.db import Repo
++from src.models import User
+ 
+ 
+-def render_list(repo: Repo, owner_id: int) -> str:
++def render_list(repo: Repo, viewer: User, owner_id: int) -> str:
++    if not check_access(viewer, owner_id):
++        return "access denied"
+     todos = repo.list_todos(owner_id)
+     lines = [f"todos for user {owner_id}:"]
+     for t in todos:
+@@ -10,7 +14,9 @@ def render_list(repo: Repo, owner_id: int) -> str:
+     return "\n".join(lines)
+ 
+ 
+-def render_user(repo: Repo, user_id: int) -> str:
++def render_user(repo: Repo, viewer: User, user_id: int) -> str:
++    if not check_access(viewer, user_id):
++        return "access denied"
+     u = repo.get_user(user_id)
+     if not u:
+         return "user not found"
+diff --git a/tests/test_auth.py b/tests/test_auth.py
+new file mode 100644
+index 0000000..b22879c
+--- /dev/null
++++ b/tests/test_auth.py
+@@ -0,0 +1,17 @@
++from src.auth import check_access
++from src.models import User
++
++
++def test_admin_passes():
++    u = User(id=1, name="root", role="admin")
++    assert check_access(u, 99) is True
++
++
++def test_owner_passes():
++    u = User(id=5, name="alice")
++    assert check_access(u, 5) is True
++
++
++def test_other_blocked():
++    u = User(id=5, name="alice")
++    assert check_access(u, 99) is False
+diff --git a/tests/test_db.py b/tests/test_db.py
+index e757b82..eed3138 100644
+--- a/tests/test_db.py
++++ b/tests/test_db.py
+@@ -8,3 +8,9 @@ def test_add_and_list():
+     todos = repo.list_todos(u.id)
+     assert len(todos) == 1
+     assert todos[0].title == "x"
++
++
++def test_user_role_default():
++    repo = Repo()
++    u = repo.add_user("a")
++    assert u.role == "user"

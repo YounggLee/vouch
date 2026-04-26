@@ -21,11 +21,14 @@ def _use_cache_only() -> bool:
 def _client() -> "genai.Client":
     if _PROJECT:
         return genai.Client(vertexai=True, project=_PROJECT, location=_LOCATION)
+    api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+    if api_key:
+        return genai.Client(api_key=api_key)
     return genai.Client()
 
 
 _SEMANTIC_PROMPT = """\
-You receive a list of raw git hunks from one change. Group hunks that share a single intent into a SemanticHunk; split a single oversized hunk (>20 lines) into multiple SemanticHunks if it covers multiple intents. Output JSON: a list where each item is {"id": "s<n>", "intent": "한국어 한 줄 의도", "raw_hunk_ids": ["r1", ...]}. Each raw_hunk_id must appear in exactly one SemanticHunk. Be conservative; prefer grouping only when intent is clearly shared.
+You receive a list of raw git hunks from one change. Group hunks that share a single SPECIFIC intent into a SemanticHunk. Each SemanticHunk should describe ONE concrete action (e.g., "check_access 함수 추가", "users 테이블에 role 컬럼 추가", "SQL injection 취약점 도입", "테스트 케이스 추가"). DO NOT lump everything into one giant SemanticHunk — aim for 3-8 SemanticHunks for a typical multi-file change. Group only when hunks are mechanically inseparable (function added + its single test, or a rename + its callers). Output JSON: a list where each item is {"id": "s<n>", "intent": "한국어 한 줄 의도 (구체적으로)", "raw_hunk_ids": ["r1", ...]}. Each raw_hunk_id must appear in exactly one SemanticHunk.
 Raw hunks JSON:
 """
 

@@ -5,3 +5,6 @@ __pycache__/
 *.egg-info/
 fixtures/responses/*.json.live
 .env
+.obsidian/
+docs/CMUX x AIM Hackathon Guide*.md
+tests/fixtures/diverse.diff

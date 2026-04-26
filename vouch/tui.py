@@ -16,6 +16,17 @@ _CONF_BADGE = {"confident": "✅", "uncertain": "⚠️", "guess": "❓"}
 
 
 class RejectModal(ModalScreen[Optional[str]]):
+    CSS = """
+    RejectModal { align: center middle; }
+    RejectModal > Vertical {
+        width: 70%;
+        height: auto;
+        max-height: 6;
+        border: thick $accent;
+        background: $surface;
+        padding: 1 2;
+    }
+    """
     BINDINGS = [Binding("escape", "cancel", "Cancel")]
 
     def compose(self) -> ComposeResult:

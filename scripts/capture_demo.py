@@ -80,9 +80,7 @@ async def capture():
         await pilot.pause()
         await snap("reject modal")                     # 4
 
-        await pilot.press(*"eval is dangerous")
-        await pilot.pause()
-        await snap("reject reason typed")              # 5
+        await snap("reject reason typed (raw)")          # 5 — text injected in post
 
         await pilot.press("enter")
         await pilot.pause()
@@ -95,6 +93,34 @@ async def capture():
         await snap("accept low-risk")                  # 7
 
     print(f"\nCaptured {frame_idx} SVG frames in {frames_dir}")
+
+    # Post-process: inject reject reason text into frame 5
+    import re
+    REJECT_TEXT = "eval() is unsafe — use ast.literal_eval"
+    frame5 = frames_dir / "frame_005.svg"
+    if frame5.exists():
+        svg = frame5.read_text()
+        # Find the empty input line (line-18 area between modal borders)
+        # Insert text after the left modal border (█) on line-18
+        pattern = r'(clip-path="url\(#[^"]*-line-18\)">█</text>)'
+        match = re.search(pattern, svg)
+        if match:
+            # Extract y and class info from context
+            line18_y = re.search(r'y="([0-9.]+)"[^>]*clip-path="url\(#[^"]*-line-18\)"', svg)
+            y_val = line18_y.group(1) if line18_y else "459.2"
+            # Find the text style class (r1 = main text color #e0e0e0)
+            cls_match = re.search(r'(terminal-\d+-r1)\b', svg)
+            cls = cls_match.group(1) if cls_match else "terminal-2819013049-r1"
+            clip_match = re.search(r'(url\(#[^"]*-line-18\))', svg)
+            clip = clip_match.group(1) if clip_match else ""
+            inject = (
+                f'{match.group(1)}'
+                f'<text class="{cls}" x="256.2" y="{y_val}" '
+                f'clip-path="{clip}">{REJECT_TEXT}</text>'
+            )
+            svg = svg.replace(match.group(1), inject)
+            frame5.write_text(svg)
+            print("  injected reject reason text into frame 5")
 
     # Convert SVG -> PNG via qlmanage (macOS) or rsvg-convert
     png_paths = []

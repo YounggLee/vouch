@@ -32,8 +32,8 @@ KEY BINDINGS (TUI)
 
 REJECT DELIVERY (in priority order)
   1. gh pr comment    when running in --pr mode
-  2. cmux send        when --source-surface / VOUCH_SOURCE_SURFACE / CMUX_SURFACE_ID is set
-  3. clipboard        pbcopy / wl-copy / xclip auto-detected
+  2. cmux send        when --source-surface or VOUCH_SOURCE_SURFACE is explicitly set
+  3. clipboard        pbcopy / wl-copy / xclip auto-detected (default for manual runs)
   4. stdout           if all of the above fail
 
 ENVIRONMENT
@@ -41,7 +41,9 @@ ENVIRONMENT
   VOUCH_MODEL           Gemini model id (default: gemini-3-flash-preview).
   VOUCH_CACHE_DIR       Response cache directory (default: fixtures/responses).
   VOUCH_CACHE_ONLY=1    Cache-only mode — never call Gemini. Errors on cache miss.
-  VOUCH_SOURCE_SURFACE  Default reject-target cmux surface ref.
+  VOUCH_SOURCE_SURFACE  Reject-target cmux surface ref. Required for cmux delivery —
+                        no auto-fallback to CMUX_SURFACE_ID (would loop the prompt
+                        back into vouch's own shell).
 
 EXAMPLES
   # Review what you're about to commit

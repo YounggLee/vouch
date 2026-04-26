@@ -16,15 +16,17 @@ def cmux_available() -> bool:
 
 
 def discover_source_surface(cli_flag: Optional[str]) -> Optional[str]:
+    """Return source surface ref only when the user has explicitly opted in.
+
+    `CMUX_SURFACE_ID` is intentionally NOT used as a fallback: when vouch is
+    launched manually from a cmux pane, that env var points to the pane vouch
+    itself runs in, so a fallback would deliver the reject prompt back into
+    the user's own shell. Hook-driven flows must export `VOUCH_SOURCE_SURFACE`
+    explicitly before spawning vouch.
+    """
     if cli_flag:
         return cli_flag
-    v = os.environ.get("VOUCH_SOURCE_SURFACE")
-    if v:
-        return v
-    v = os.environ.get("CMUX_SURFACE_ID")
-    if v:
-        return v
-    return None
+    return os.environ.get("VOUCH_SOURCE_SURFACE")
 
 
 def workspace_id() -> Optional[str]:
@@ -131,14 +133,16 @@ def deliver_reject(text: str, surface: Optional[str], pr_number: Optional[str] =
     Returns the channel name: "gh", "cmux", "<clipboard-cmd>", or "stdout".
     """
     if pr_number and post_pr_comment(pr_number, text):
-        sys.stderr.write(f"vouch: posted reject as PR #{pr_number} comment\n")
+        print(f"vouch: posted reject as PR #{pr_number} comment")
         return "gh"
     if surface and send_to_surface(surface, text):
+        print(f"vouch: sent reject to cmux {surface}")
         return "cmux"
     cb = _try_clipboard(text)
     if cb:
-        sys.stderr.write(f"vouch: reject prompt copied to clipboard via {cb} — paste it into your agent\n")
+        print(f"vouch: reject prompt copied to clipboard via {cb} — paste into your agent")
         return cb
-    print("\n--- vouch reject prompt ---")
+    print("vouch: no delivery channel available — printing prompt below\n")
+    print("--- vouch reject prompt ---")
     print(text)
     return "stdout"

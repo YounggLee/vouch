@@ -50,8 +50,7 @@ class VouchApp(App):
         Binding("r", "reject", "Reject"),
         Binding("s", "send_rejects", "Quit and send to source"),
         Binding("q", "quit", "Quit"),
-        Binding("enter", "focus_detail", "Focus diff", priority=True, show=False),
-        Binding("escape", "focus_queue", "Focus queue", priority=True, show=False),
+        Binding("escape", "focus_queue", "Focus queue", show=False),
     ]
 
     def __init__(
@@ -182,10 +181,19 @@ class VouchApp(App):
         self.push_screen(RejectModal(), _set)
 
     def action_focus_detail(self) -> None:
-        self.query_one("#detail-scroll", VerticalScroll).focus()
+        try:
+            self.query_one("#detail-scroll", VerticalScroll).focus()
+        except Exception:
+            pass
 
     def action_focus_queue(self) -> None:
-        self.query_one("#table", DataTable).focus()
+        try:
+            self.query_one("#table", DataTable).focus()
+        except Exception:
+            pass
+
+    def on_data_table_row_selected(self, event) -> None:
+        self.action_focus_detail()
 
     def action_send_rejects(self) -> None:
         rejects = [it for it in self.items if it.decision == "reject"]

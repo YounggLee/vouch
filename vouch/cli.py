@@ -4,7 +4,7 @@ from typing import List
 
 from vouch import cmux, help as help_module
 from vouch.diff_input import resolve_mode, get_unified_diff
-from vouch.feedback import build_reject_prompt
+from vouch.feedback import build_pr_review_body, build_reject_prompt
 from vouch.llm import analyze, semantic_postprocess
 from vouch.models import ReviewItem
 from vouch.parser import parse_raw_hunks
@@ -60,7 +60,10 @@ def main(argv=None) -> int:
     pr_number = spec.value if spec.kind == "pr" else None
 
     def on_send(rejects: List[ReviewItem]) -> None:
-        prompt = build_reject_prompt(rejects)
+        if pr_number:
+            prompt = build_pr_review_body(rejects)
+        else:
+            prompt = build_reject_prompt(rejects)
         if not prompt:
             return
         channel = cmux.deliver_reject(prompt, source, pr_number=pr_number)

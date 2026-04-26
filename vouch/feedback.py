@@ -4,6 +4,7 @@ from vouch.models import ReviewItem
 
 
 def build_reject_prompt(rejected: List[ReviewItem]) -> str:
+    """Agent-retry framing. Sent to source surface for the agent to re-attempt."""
     if not rejected:
         return ""
     lines = [
@@ -17,3 +18,15 @@ def build_reject_prompt(rejected: List[ReviewItem]) -> str:
     lines.append("")
     lines.append("거절된 항목 외에는 그대로 유지하고, 위 사유를 직접 해소하는 변경만 적용해줘.")
     return "\n".join(lines)
+
+
+def build_pr_review_body(rejected: List[ReviewItem]) -> str:
+    """PR review body. Reasons only — no agent-retry framing."""
+    if not rejected:
+        return ""
+    sections = []
+    for it in rejected:
+        files = ", ".join(f"`{f}`" for f in it.semantic.files)
+        reason = it.reject_reason or "(no reason)"
+        sections.append(f"### {files}\n{reason}")
+    return "\n\n".join(sections)

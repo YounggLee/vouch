@@ -5,9 +5,41 @@ from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.screen import ModalScreen
+from textual.events import MouseDown, MouseMove, MouseUp
+from textual.widget import Widget
 from textual.widgets import DataTable, Footer, Header, Input, Static
 
 from vouch.models import ReviewItem
+
+
+class DragHandle(Widget):
+    DEFAULT_CSS = """
+    DragHandle { width: 1; height: 1fr; background: $accent; }
+    DragHandle:hover { background: $success; }
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._dragging = False
+
+    def on_mouse_down(self, event: MouseDown) -> None:
+        self._dragging = True
+        self.capture_mouse()
+
+    def on_mouse_move(self, event: MouseMove) -> None:
+        if not self._dragging:
+            return
+        screen_width = self.screen.size.width
+        if screen_width == 0:
+            return
+        pct = max(20, min(80, int(event.screen_x / screen_width * 100)))
+        self.app._queue_pct = pct
+        self.app.query_one("#queue", Vertical).styles.width = f"{pct}%"
+        self.app.query_one("#detail", Vertical).styles.width = f"{100 - pct}%"
+
+    def on_mouse_up(self, event: MouseUp) -> None:
+        self._dragging = False
+        self.release_mouse()
 
 
 _RISK_BADGE = {"high": "🔴", "med": "🟡", "low": "🟢"}
@@ -70,6 +102,7 @@ class VouchApp(App):
         yield Header(show_clock=False, name="vouch — you vouch, AI helps")
         yield Horizontal(
             Vertical(DataTable(id="table"), id="queue"),
+            DragHandle(),
             Vertical(
                 Static(id="detail-header"),
                 VerticalScroll(Static(id="detail-diff"), id="detail-scroll"),

@@ -51,6 +51,8 @@ class VouchApp(App):
         Binding("s", "send_rejects", "Quit and send to source"),
         Binding("q", "quit", "Quit"),
         Binding("escape", "focus_queue", "Focus queue", show=False),
+        Binding("[", "resize(-10)", "Queue wider", show=False),
+        Binding("]", "resize(10)", "Diff wider", show=False),
     ]
 
     def __init__(
@@ -179,6 +181,15 @@ class VouchApp(App):
                 self._report_progress()
 
         self.push_screen(RejectModal(), _set)
+
+    def action_resize(self, delta: int) -> None:
+        queue = self.query_one("#queue", Vertical)
+        detail = self.query_one("#detail", Vertical)
+        current = getattr(self, "_queue_pct", 50)
+        new = max(20, min(80, current + delta))
+        self._queue_pct = new
+        queue.styles.width = f"{new}%"
+        detail.styles.width = f"{100 - new}%"
 
     def action_focus_detail(self) -> None:
         try:

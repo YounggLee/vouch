@@ -67,6 +67,8 @@ def _pipeline(args, cwd):
             "raw": len(raw),
             "sem": len(sem),
             "high": sum(1 for a in ana if a.risk == "high"),
+            "max_files_per_intent": max((len(s.files) for s in sem), default=0),
+            "intents": [(s.intent, s.files) for s in sem],
         }
     finally:
         os.chdir(old)
@@ -75,7 +77,7 @@ def _pipeline(args, cwd):
 def test_uncommitted_mode(clean_main):
     _git("apply", "pending.diff")
     result = _pipeline([], clean_main)
-    # pending.diff touches 3 files (cli.py, store.py + new debug.py)
+    # `git diff HEAD` only sees tracked files → cli.py + store.py hunks
     assert result["raw"] >= 3, result
     if E2E:
         assert result["sem"] >= 1
@@ -86,23 +88,26 @@ def test_uncommitted_mode(clean_main):
 def test_commit_mode(clean_main):
     _git("checkout", "feature/auth")
     result = _pipeline(["HEAD"], clean_main)
-    # last commit is the rename (LOW): should produce hunks but few
+    # last commit is the rename + docstring (LOW), 2 files
     assert result["raw"] >= 1, result
 
 
 def test_range_mode(clean_main):
     result = _pipeline(["main..feature/auth"], clean_main)
-    # feature/auth has 3 commits across 3 files
-    assert result["raw"] >= 3, result
+    # feature/auth has 3 commits across 7 files (auth + audit + rename)
+    assert result["raw"] >= 6, result
     if E2E:
-        assert result["sem"] >= 1
-        # SQL injection in auth.py is high
+        assert result["sem"] >= 2
+        # SQL injection in auth.py and store.py role-check are high
         assert result["high"] >= 1
+        # range mode is the canonical multi-file grouping case
+        assert result["max_files_per_intent"] >= 3, result["intents"]
 
 
 def test_pr_mode(clean_main):
     result = _pipeline(["--pr", "1"], clean_main)
-    assert result["raw"] >= 3, result
+    assert result["raw"] >= 6, result
     if E2E:
-        assert result["sem"] >= 1
+        assert result["sem"] >= 2
         assert result["high"] >= 1
+        assert result["max_files_per_intent"] >= 3, result["intents"]

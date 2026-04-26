@@ -88,15 +88,56 @@ vhs scripts/demo.tape    # writes docs/demo.gif
 
 ## Integration tests
 
-Verify all 4 input modes (uncommitted / commit / range / pr) against [vouch-fixtures](https://github.com/YounggLee/vouch-fixtures), a companion repo that seeds a baseline app, a feature branch with mixed-risk commits, and an open PR.
+Verify all 4 input modes (uncommitted / commit / range / pr) against [YounggLee/vouch-fixtures](https://github.com/YounggLee/vouch-fixtures) — a companion repo that seeds a baseline app, a feature branch with mixed-risk commits, and an open PR.
 
-```
-tests/setup_fixture.sh                       # clones to /tmp/vouch-fixtures
-pytest tests/test_integration.py             # lite — diff fetch + raw hunk parse, no LLM
-VOUCH_E2E=1 pytest tests/test_integration.py # full — adds semantic + analyze, hits Gemini
+| Layer | What it covers | LLM | Time |
+|---|---|---|---|
+| **lite** | `git diff` / `git show` / `gh pr diff` per mode → unidiff parsing | ❌ | ~1s |
+| **e2e** | lite + `semantic_postprocess` + `analyze` → assert risk distribution | ✅ first run, cached after | ~30s cold, ~1s warm |
+
+### Automated (pytest)
+
+```bash
+tests/setup_fixture.sh                          # clones to /tmp/vouch-fixtures, applies pending.diff
+pytest tests/test_integration.py                # lite (CI-safe, skips if fixture missing)
+VOUCH_E2E=1 pytest tests/test_integration.py    # e2e (needs GEMINI_API_KEY)
 ```
 
-Lite skips automatically if the fixture isn't cloned, so it's safe to leave in CI.
+### Manual (TUI on each mode)
+
+Try each mode interactively against the fixture:
+
+```bash
+# 1. Set up fixture once
+./tests/setup_fixture.sh
+
+# 2. Load API key
+set -a; . .env; set +a
+
+# 3. cd into fixture
+cd /tmp/vouch-fixtures
+
+# 4. Try each mode
+vouch                              # uncommitted (pending.diff applied to working tree)
+
+git checkout feature/auth          # switch branch first
+vouch HEAD                         # commit mode — last commit only
+vouch HEAD~2..HEAD                 # range mode — last 2 commits
+
+git checkout main                  # back to main
+vouch main..feature/auth           # range mode — full feature branch
+vouch --pr 1                       # pr mode — fixture PR #1
+```
+
+Press `q` to exit the TUI. Each mode produces a different review queue — useful for sanity-checking the pipeline end-to-end without poking the demo fixture.
+
+**Reset fixture between manual runs** (uncommitted mode dirties the tree):
+
+```bash
+cd /tmp/vouch-fixtures && git checkout main && git reset --hard origin/main && git clean -fd
+```
+
+Or just re-run `tests/setup_fixture.sh` (idempotent).
 
 ## Roadmap (v2)
 

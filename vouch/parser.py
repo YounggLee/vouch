@@ -11,7 +11,7 @@ def parse_raw_hunks(unified_diff: str) -> List[RawHunk]:
     patch = PatchSet(unified_diff)
     out: List[RawHunk] = []
     for pf in patch:
-        path = pf.path
+        path = pf.source_file.removeprefix("a/") if pf.is_removed_file else pf.path
         for h in pf:
             body_lines = []
             for line in h:

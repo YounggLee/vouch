@@ -15,14 +15,26 @@ cmux-native AI diff reviewer — semantic hunks, risk triage, confidence self-do
 ## Run
 
 ```
-vouch                        # uncommitted (default)
-vouch HEAD~3                 # single commit
-vouch main..HEAD             # range
-vouch --pr 42                # GitHub PR
-vouch hook stop              # called from Claude Code SessionStop hook
+vouch                                    # uncommitted (default)
+vouch HEAD~3                             # single commit
+vouch main..HEAD                         # range
+vouch --pr 42                            # GitHub PR
+vouch --source-surface surface:5         # explicit reject target
+vouch hook stop                          # called from Claude Code SessionStop hook
 ```
 
 Key bindings: `j`/`k` move, `a` accept, `A` accept-all-low, `r` reject (modal for reason), `s` send rejects → source surface, `q` quit.
+
+### Environment
+
+| Variable | Effect |
+|---|---|
+| `GEMINI_API_KEY` | Gemini API key. Falls back to repo `.env`. |
+| `VOUCH_CACHE_DIR` | Response cache directory (default: `fixtures/responses`). |
+| `VOUCH_CACHE_ONLY=1` | Use cache only — never call Gemini. Errors if cache misses. |
+| `VOUCH_REQUIRE_CMUX=0` | Skip the `cmux ping` precondition (sidebar/notify silently no-op). |
+| `VOUCH_SOURCE_SURFACE` | Default reject-target surface. Falls back to `CMUX_SURFACE_ID`. |
+| `VOUCH_MODEL` | Gemini model id (default: `gemini-3-flash-preview`). |
 
 ## Demo
 

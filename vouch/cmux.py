@@ -69,12 +69,16 @@ def notify(title: str, body: str = "") -> None:
     subprocess.run(args, capture_output=True)
 
 
-def send_to_surface(surface: str, text: str) -> None:
+def send_to_surface(surface: str, text: str) -> bool:
     ws = workspace_id()
     cmd1 = ["cmux", "send", "--surface", surface, text]
     cmd2 = ["cmux", "send-key", "--surface", surface, "Enter"]
     if ws:
         cmd1 += ["--workspace", ws]
         cmd2 += ["--workspace", ws]
-    subprocess.run(cmd1, capture_output=True, check=True)
-    subprocess.run(cmd2, capture_output=True, check=True)
+    try:
+        r1 = subprocess.run(cmd1, capture_output=True)
+        r2 = subprocess.run(cmd2, capture_output=True)
+        return r1.returncode == 0 and r2.returncode == 0
+    except Exception:
+        return False

@@ -1,4 +1,5 @@
 import argparse
+import os
 import sys
 from typing import List
 
@@ -27,7 +28,10 @@ def main(argv=None) -> int:
     parser.add_argument("--source-surface", dest="source", help="cmux surface ref of source agent")
     args = parser.parse_args(argv)
 
-    cmux.require_cmux()
+    if os.environ.get("VOUCH_REQUIRE_CMUX", "1") != "0":
+        cmux.require_cmux()
+    elif not cmux.cmux_available():
+        print("vouch: cmux not detected (VOUCH_REQUIRE_CMUX=0) — sidebar/notify disabled", file=sys.stderr)
 
     spec_args = []
     if args.pr:
@@ -72,8 +76,12 @@ def main(argv=None) -> int:
             print("\n--- vouch reject prompt (no source surface set) ---")
             print(prompt)
             return
-        cmux.send_to_surface(source, prompt)
-        cmux.notify("vouch", f"sent {len(rejects)} rejects to source")
+        ok = cmux.send_to_surface(source, prompt)
+        if ok:
+            cmux.notify("vouch", f"sent {len(rejects)} rejects to source")
+        else:
+            print(f"\n--- vouch reject prompt (send to surface={source} failed) ---")
+            print(prompt)
 
     def on_progress(decided: int, total: int) -> None:
         cmux.set_progress(decided / total if total else 0, f"{decided}/{total}")

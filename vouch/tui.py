@@ -2,6 +2,7 @@ from typing import Callable, List, Optional
 
 from rich.syntax import Syntax
 from textual.app import App, ComposeResult
+from textual.color import Color
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.screen import ModalScreen
@@ -83,6 +84,7 @@ class VouchApp(App):
         table.cursor_type = "row"
         table.add_columns("Risk", "Conf", "Intent", "Files", "Decision")
         self._dragging = False
+        self._hover_split = False
         self._refresh_table()
         self._update_detail()
         self._report_progress()
@@ -188,23 +190,36 @@ class VouchApp(App):
         split_x = int(screen_width * getattr(self, "_queue_pct", 50) / 100)
         if abs(event.screen_x - split_x) <= 1:
             self._dragging = True
-            self.capture_mouse()
+
+    def _update_split_highlight(self, near: bool) -> None:
+        if near == self._hover_split:
+            return
+        self._hover_split = near
+        queue = self.query_one("#queue", Vertical)
+        detail = self.query_one("#detail", Vertical)
+        if near:
+            queue.styles.border_right = ("heavy", Color(255, 170, 0))
+            detail.styles.border_left = ("heavy", Color(255, 170, 0))
+        else:
+            queue.styles.border_right = None
+            detail.styles.border_left = None
 
     def on_mouse_move(self, event) -> None:
-        if not self._dragging:
-            return
         screen_width = self.screen.size.width
         if screen_width == 0:
             return
-        pct = max(20, min(80, int(event.screen_x / screen_width * 100)))
-        self._queue_pct = pct
-        self.query_one("#queue", Vertical).styles.width = f"{pct}%"
-        self.query_one("#detail", Vertical).styles.width = f"{100 - pct}%"
+        split_x = int(screen_width * getattr(self, "_queue_pct", 50) / 100)
+        if self._dragging:
+            pct = max(20, min(80, int(event.screen_x / screen_width * 100)))
+            self._queue_pct = pct
+            self.query_one("#queue", Vertical).styles.width = f"{pct}%"
+            self.query_one("#detail", Vertical).styles.width = f"{100 - pct}%"
+        else:
+            self._update_split_highlight(abs(event.screen_x - split_x) <= 1)
 
     def on_mouse_up(self, event) -> None:
-        if self._dragging:
-            self._dragging = False
-            self.release_mouse()
+        self._dragging = False
+        self._update_split_highlight(False)
 
     def action_resize(self, delta: int) -> None:
         queue = self.query_one("#queue", Vertical)

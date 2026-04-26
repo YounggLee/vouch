@@ -1,8 +1,9 @@
 from typing import Callable, List, Optional
 
+from rich.syntax import Syntax
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.containers import Horizontal, Vertical
+from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.screen import ModalScreen
 from textual.widgets import DataTable, Footer, Header, Input, Static
 
@@ -34,17 +35,23 @@ class VouchApp(App):
     Screen { layout: horizontal; }
     #queue { width: 50%; border: solid $accent; }
     #detail { width: 50%; border: solid $accent; }
+    #queue:focus-within { border: heavy $success; }
+    #detail:focus-within { border: heavy $success; }
     DataTable { height: 1fr; }
+    #detail-header { height: auto; padding: 0 1; }
+    #detail-scroll { height: 1fr; border-top: solid $accent; padding: 0 1; }
     """
 
     BINDINGS = [
         Binding("j", "cursor_down", "Down"),
         Binding("k", "cursor_up", "Up"),
         Binding("a", "accept", "Accept"),
-        Binding("A", "accept_all_low", "Accept all 🟢"),
+        Binding("A", "accept_all_low", "Accept all"),
         Binding("r", "reject", "Reject"),
-        Binding("s", "send_rejects", "Send rejects → source"),
+        Binding("s", "send_rejects", "Quit and send to source"),
         Binding("q", "quit", "Quit"),
+        Binding("enter", "focus_detail", "Focus diff", priority=True, show=False),
+        Binding("escape", "focus_queue", "Focus queue", priority=True, show=False),
     ]
 
     def __init__(
@@ -62,14 +69,20 @@ class VouchApp(App):
         yield Header(show_clock=False, name="vouch — you vouch, AI helps")
         yield Horizontal(
             Vertical(DataTable(id="table"), id="queue"),
-            Vertical(Static(id="detail-body", expand=True), id="detail"),
+            Vertical(
+                Static(id="detail-header"),
+                VerticalScroll(Static(id="detail-diff"), id="detail-scroll"),
+                id="detail",
+            ),
         )
         yield Footer()
 
     def on_mount(self) -> None:
         table = self.query_one("#table", DataTable)
         table.cursor_type = "row"
-        table.add_columns("R", "C", "intent", "files", "decision")
+        table.add_columns("Risk", "Conf", "Intent", "Files", "Decision")
+        self.query_one("#queue", Vertical).border_title = "Queue  ·  Enter → focus diff"
+        self.query_one("#detail", Vertical).border_title = "Diff  ·  Esc ← back to queue"
         self._refresh_table()
         self._update_detail()
         self._report_progress()
@@ -94,24 +107,41 @@ class VouchApp(App):
         return self.items[table.cursor_row]
 
     def _update_detail(self) -> None:
-        body = self.query_one("#detail-body", Static)
+        header = self.query_one("#detail-header", Static)
+        diff_widget = self.query_one("#detail-diff", Static)
+        scroll = self.query_one("#detail-scroll", VerticalScroll)
         it = self._selected()
         if it is None:
-            body.update("")
+            header.update("")
+            diff_widget.update("")
             return
         text = (
-            f"[b]{it.semantic.intent}[/b]\n\n"
+            f"[b]{it.semantic.intent}[/b]\n"
             f"Risk: {_RISK_BADGE[it.analysis.risk]} {it.analysis.risk}  "
             f"({it.analysis.risk_reason})\n"
             f"Confidence: {_CONF_BADGE[it.analysis.confidence]} {it.analysis.confidence}\n"
             f"Summary: {it.analysis.summary_ko}\n"
             f"Files: {', '.join(it.semantic.files)}\n"
-            f"Decision: {it.decision or '(none)'}\n"
+            f"Decision: {it.decision or '(none)'}"
         )
         if it.reject_reason:
-            text += f"Reason: {it.reject_reason}\n"
-        text += "\n[dim]" + (it.semantic.merged_diff or "")[:2000] + "[/dim]"
-        body.update(text)
+            text += f"\nReason: {it.reject_reason}"
+        header.update(text)
+        diff_text = it.semantic.merged_diff or ""
+        if diff_text:
+            diff_widget.update(
+                Syntax(
+                    diff_text,
+                    "diff",
+                    theme="ansi_dark",
+                    line_numbers=False,
+                    word_wrap=True,
+                    background_color="default",
+                )
+            )
+        else:
+            diff_widget.update("[dim](no diff)[/dim]")
+        scroll.scroll_home(animate=False)
 
     def on_data_table_row_highlighted(self) -> None:
         self._update_detail()
@@ -150,6 +180,12 @@ class VouchApp(App):
                 self._report_progress()
 
         self.push_screen(RejectModal(), _set)
+
+    def action_focus_detail(self) -> None:
+        self.query_one("#detail-scroll", VerticalScroll).focus()
+
+    def action_focus_queue(self) -> None:
+        self.query_one("#table", DataTable).focus()
 
     def action_send_rejects(self) -> None:
         rejects = [it for it in self.items if it.decision == "reject"]

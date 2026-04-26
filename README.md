@@ -86,6 +86,18 @@ Uses pre-recorded LLM responses (`VOUCH_CACHE_ONLY=1`) so the demo is determinis
 vhs scripts/demo.tape    # writes docs/demo.gif
 ```
 
+## Integration tests
+
+Verify all 4 input modes (uncommitted / commit / range / pr) against [vouch-fixtures](https://github.com/YounggLee/vouch-fixtures), a companion repo that seeds a baseline app, a feature branch with mixed-risk commits, and an open PR.
+
+```
+tests/setup_fixture.sh                       # clones to /tmp/vouch-fixtures
+pytest tests/test_integration.py             # lite — diff fetch + raw hunk parse, no LLM
+VOUCH_E2E=1 pytest tests/test_integration.py # full — adds semantic + analyze, hits Gemini
+```
+
+Lite skips automatically if the fixture isn't cloned, so it's safe to leave in CI.
+
 ## Roadmap (v2)
 
 - Multi-model disagreement flag

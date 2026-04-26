@@ -1,0 +1,35 @@
+#!/usr/bin/expect -f
+
+set timeout 30
+set vouch_bin "$env(ROOT)/.venv/bin/vouch"
+
+spawn $vouch_bin
+
+# Wait for TUI to render
+sleep 8
+
+# Navigate: move down
+send "j"
+sleep 2
+
+# Select item (Enter)
+send "\r"
+sleep 3
+
+# Back to queue
+send "\033"
+sleep 1
+
+# Move down again
+send "j"
+sleep 2
+
+# Select second item
+send "\r"
+sleep 3
+
+# Quit
+send "q"
+sleep 1
+
+expect eof

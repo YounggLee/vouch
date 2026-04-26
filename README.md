@@ -8,7 +8,7 @@
 - **Does**: groups raw git hunks into *intent units*, tags each with risk/confidence, lets you accept or reject in a TUI — and **rejects flow back to the agent as a structured retry prompt**.
 - **Different**: not a one-way reviewer. The reject loop closes automatically (cmux surface) or via clipboard (anywhere else).
 
-![demo](docs/demo.gif)
+![demo](demo.gif)
 
 ## Architecture
 
@@ -84,7 +84,7 @@ Key bindings: `j`/`k` move, `a` accept, `A` accept-all-low, `r` reject (modal fo
 Uses pre-recorded LLM responses (`VOUCH_CACHE_ONLY=1`) so the demo is deterministic. Re-record the GIF with:
 
 ```
-vhs scripts/demo.tape    # writes docs/demo.gif
+bash scripts/record_demo.sh    # writes demo.gif
 ```
 
 ## Integration tests

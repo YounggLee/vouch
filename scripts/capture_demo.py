@@ -50,46 +50,49 @@ async def capture():
     frames_dir = Path(tempfile.mkdtemp(prefix="vouch-demo-"))
     frame_idx = 0
 
+    frames = []
+
+    async def snap(label):
+        nonlocal frame_idx
+        svg = app.export_screenshot()
+        (frames_dir / f"frame_{frame_idx:03d}.svg").write_text(svg)
+        print(f"  frame {frame_idx}: {label}")
+        frame_idx += 1
+
     async with app.run_test(size=(120, 35)) as pilot:
         await pilot.pause()
 
-        # Frame 0: initial view
-        svg = app.export_screenshot()
-        (frames_dir / f"frame_{frame_idx:03d}.svg").write_text(svg)
-        print(f"  frame {frame_idx}: initial view")
-        frame_idx += 1
+        await snap("initial view")                     # 0
 
-        # Frame 1: move down
         await pilot.press("j")
         await pilot.pause()
-        svg = app.export_screenshot()
-        (frames_dir / f"frame_{frame_idx:03d}.svg").write_text(svg)
-        print(f"  frame {frame_idx}: cursor down")
-        frame_idx += 1
+        await snap("cursor down")                      # 1
 
-        # Frame 2: enter detail
         await pilot.press("enter")
         await pilot.pause()
-        svg = app.export_screenshot()
-        (frames_dir / f"frame_{frame_idx:03d}.svg").write_text(svg)
-        print(f"  frame {frame_idx}: detail view")
-        frame_idx += 1
+        await snap("detail view")                      # 2
 
-        # Frame 3: back to queue
         await pilot.press("escape")
         await pilot.pause()
-        svg = app.export_screenshot()
-        (frames_dir / f"frame_{frame_idx:03d}.svg").write_text(svg)
-        print(f"  frame {frame_idx}: back to queue")
-        frame_idx += 1
+        await snap("back to queue")                    # 3
 
-        # Frame 4: accept item
+        await pilot.press("r")
+        await pilot.pause()
+        await snap("reject modal")                     # 4
+
+        await pilot.press(*"eval is dangerous")
+        await pilot.pause()
+        await snap("reject reason typed")              # 5
+
+        await pilot.press("enter")
+        await pilot.pause()
+        await snap("rejected")                         # 6
+
+        await pilot.press("j")
+        await pilot.pause()
         await pilot.press("a")
         await pilot.pause()
-        svg = app.export_screenshot()
-        (frames_dir / f"frame_{frame_idx:03d}.svg").write_text(svg)
-        print(f"  frame {frame_idx}: accepted")
-        frame_idx += 1
+        await snap("accept low-risk")                  # 7
 
     print(f"\nCaptured {frame_idx} SVG frames in {frames_dir}")
 
@@ -117,7 +120,7 @@ async def capture():
 
     # Assemble GIF with ffmpeg
     gif_path = ROOT / "demo.gif"
-    durations = [2.5, 2, 3, 2, 2.5]
+    durations = [1.25, 1, 1.5, 1, 1, 1.25, 1, 1.25]
     concat_file = frames_dir / "concat.txt"
     with open(concat_file, "w") as f:
         for png, dur in zip(png_paths, durations):

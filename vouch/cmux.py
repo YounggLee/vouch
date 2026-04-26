@@ -91,6 +91,20 @@ def send_to_surface(surface: str, text: str) -> bool:
         return False
 
 
+def post_pr_comment(pr: str, text: str) -> bool:
+    if shutil.which("gh") is None:
+        return False
+    try:
+        r = subprocess.run(
+            ["gh", "pr", "comment", pr, "-F", "-"],
+            input=text.encode("utf-8"),
+            capture_output=True,
+        )
+        return r.returncode == 0
+    except (subprocess.SubprocessError, OSError):
+        return False
+
+
 def _try_clipboard(text: str) -> Optional[str]:
     candidates = [
         ("pbcopy", []),
@@ -110,11 +124,15 @@ def _try_clipboard(text: str) -> Optional[str]:
     return None
 
 
-def deliver_reject(text: str, surface: Optional[str]) -> str:
+def deliver_reject(text: str, surface: Optional[str], pr_number: Optional[str] = None) -> str:
     """Deliver reject prompt via best available channel.
 
-    Returns the channel name: "cmux", "<clipboard-cmd>", or "stdout".
+    Priority: gh PR comment (if pr_number) → cmux surface → clipboard → stdout.
+    Returns the channel name: "gh", "cmux", "<clipboard-cmd>", or "stdout".
     """
+    if pr_number and post_pr_comment(pr_number, text):
+        sys.stderr.write(f"vouch: posted reject as PR #{pr_number} comment\n")
+        return "gh"
     if surface and send_to_surface(surface, text):
         return "cmux"
     cb = _try_clipboard(text)

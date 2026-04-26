@@ -54,14 +54,17 @@ def main(argv=None) -> int:
     cmux.set_status("vouch", f"review · {len(items)} items", icon="shield-check")
 
     source = cmux.discover_source_surface(args.source)
+    pr_number = spec.value if spec.kind == "pr" else None
 
     def on_send(rejects: List[ReviewItem]) -> None:
         prompt = build_reject_prompt(rejects)
         if not prompt:
             return
-        channel = cmux.deliver_reject(prompt, source)
+        channel = cmux.deliver_reject(prompt, source, pr_number=pr_number)
         if channel == "cmux":
             cmux.notify("vouch", f"sent {len(rejects)} rejects to source")
+        elif channel == "gh":
+            cmux.notify("vouch", f"posted {len(rejects)} rejects as PR comment")
 
     def on_progress(decided: int, total: int) -> None:
         cmux.set_progress(decided / total if total else 0, f"{decided}/{total}")

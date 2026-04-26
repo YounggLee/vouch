@@ -30,12 +30,13 @@
                            ▼
               ┌──────────────────────────────┐
               │ delivery (best available)    │
-              │  1. cmux surface  (auto)     │
-              │  2. pbcopy / wl-copy / xclip │
-              │  3. stdout                   │
+              │  1. gh pr comment  (--pr)    │
+              │  2. cmux surface   (auto)    │
+              │  3. pbcopy / wl-copy / xclip │
+              │  4. stdout                   │
               └──────────────┬───────────────┘
                              ▼
-                       source agent
+                       source agent / PR
 ```
 
 ## Install & run

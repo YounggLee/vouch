@@ -1,9 +1,8 @@
 import argparse
-import os
 import sys
 from typing import List
 
-from vouch import cmux, hook
+from vouch import cmux
 from vouch.diff_input import resolve_mode, get_unified_diff
 from vouch.feedback import build_reject_prompt
 from vouch.llm import analyze, semantic_postprocess
@@ -15,23 +14,11 @@ from vouch.tui import VouchApp
 def main(argv=None) -> int:
     argv = sys.argv[1:] if argv is None else argv
 
-    if argv and argv[0] == "hook":
-        sub = argv[1] if len(argv) > 1 else "stop"
-        if sub == "stop":
-            return hook.stop(argv[2:])
-        print(f"unknown hook {sub}", file=sys.stderr)
-        return 2
-
-    parser = argparse.ArgumentParser(prog="vouch", description="cmux-native AI diff reviewer")
+    parser = argparse.ArgumentParser(prog="vouch", description="closed-loop AI diff reviewer")
     parser.add_argument("rev", nargs="?", help="commit, range (a..b), PR url, or omit for uncommitted")
     parser.add_argument("--pr", dest="pr", help="PR number")
     parser.add_argument("--source-surface", dest="source", help="cmux surface ref of source agent")
     args = parser.parse_args(argv)
-
-    if os.environ.get("VOUCH_REQUIRE_CMUX", "1") != "0":
-        cmux.require_cmux()
-    elif not cmux.cmux_available():
-        print("vouch: cmux not detected (VOUCH_REQUIRE_CMUX=0) — sidebar/notify disabled", file=sys.stderr)
 
     spec_args = []
     if args.pr:
@@ -72,16 +59,9 @@ def main(argv=None) -> int:
         prompt = build_reject_prompt(rejects)
         if not prompt:
             return
-        if not source:
-            print("\n--- vouch reject prompt (no source surface set) ---")
-            print(prompt)
-            return
-        ok = cmux.send_to_surface(source, prompt)
-        if ok:
+        channel = cmux.deliver_reject(prompt, source)
+        if channel == "cmux":
             cmux.notify("vouch", f"sent {len(rejects)} rejects to source")
-        else:
-            print(f"\n--- vouch reject prompt (send to surface={source} failed) ---")
-            print(prompt)
 
     def on_progress(decided: int, total: int) -> None:
         cmux.set_progress(decided / total if total else 0, f"{decided}/{total}")

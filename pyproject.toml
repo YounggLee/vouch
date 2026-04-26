@@ -13,3 +13,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 packages = ["vouch"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+norecursedirs = ["fixtures", ".venv"]

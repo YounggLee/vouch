@@ -144,6 +144,8 @@ Source surface 식별:
 | AST 기반 함수 단위 분할 | tree-sitter 도입 무거움. semantic hunk 후처리로 충분. |
 | Raw git hunk 토글 보기 | (v3) semantic만으로 충분하다는 확신. UI 단순화. |
 | **Host abstraction (cmux 외 환경 지원)** | (v3, §6.1) 의식적으로 v2로 후퇴. v1은 cmux 전용. v2에서 `Host` 인터페이스로 CmuxHost / PlainHost 분리, 일반 터미널에서도 degraded 모드로 동작 |
+| **Agent-synchronous mode (stdout / `--output` 파일 캡처)** | **v1.1** — 에이전트가 vouch를 subprocess로 spawn하고 결과를 stdout 또는 `--output <file>`로 회수하는 동작. Revdiff와 동일한 통합 경로. `cli.on_send`에 file 채널 한 줄 추가 + `cmux.deliver_reject`에 "file" tier 한 단 추가. 정체성 영향 없음 (보조 채널). |
+| **Plugin 생태계 (Claude Code / Codex / OpenCode / Pi / Zed skill)** | **v2 — 정체성 확장 결정 필요**. 에이전트가 vouch의 1급 launcher가 되는 모델. Revdiff와 직접 경쟁 영역으로 진입. 결정 축: vouch는 (a) async 사람 도구, (b) sync 에이전트 도구 양립 가능한가, 아니면 v1의 async-only 정체성을 유지하고 sync use case는 명시적으로 cut인가. 이 결정이 안 된 채로 코드부터 늘리면 "cmux-native + agent-launcher + closed-loop" 3중 메시지가 흐려진다. 별도 design doc 필요 (`docs/superpowers/specs/<date>-vouch-agent-mode.md`). |
 
 ## 6. cmux 통합 전략
 
